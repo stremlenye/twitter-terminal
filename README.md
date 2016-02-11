@@ -1,4 +1,2 @@
-activator-akka-scala-seed
-=========================
-
-A minimal seed template for an Akka with Scala build 
+# twitter-terminal
+Twitter console client
