@@ -7,10 +7,11 @@ import com.example.TwitterStreamActor.{PollTheStream, StopStreaming, StartStream
 import com.twitter.hbc.ClientBuilder
 import com.twitter.hbc.core.event.Event
 import com.twitter.hbc.core.processor.StringDelimitedProcessor
-import com.twitter.hbc.core.{HttpHosts, Constants}
-import com.twitter.hbc.core.endpoint.{StatusesSampleEndpoint, UserstreamEndpoint, StatusesFilterEndpoint}
+import com.twitter.hbc.core.{HttpHosts}
+import com.twitter.hbc.core.endpoint._
 import com.twitter.hbc.httpclient.BasicClient
 import com.twitter.hbc.httpclient.auth.OAuth1
+import com.typesafe.config._
 
 /**
   * Created by stremlenye on 11/02/16.
@@ -20,21 +21,25 @@ class TwitterStreamActor extends Actor with ActorLogging {
   var client: Option[BasicClient] = None
   val msgQueue = new LinkedBlockingQueue[String](100000)
   val eventQueue = new LinkedBlockingQueue[Event](1000)
-  context.setReceiveTimeout(5 seconds)
-  val printer = context.actorOf(PrinterActor.props, "printer")
+
+  context.setReceiveTimeout(1 seconds)
+
+  val parser = context.actorOf(MessageParserActor.props, "parser")
 
   override def receive: Receive = {
     case StartStreaming =>
-      val hosebirdHosts = HttpHosts.SITESTREAM_HOST
-      val hosebirdEndpoint = new StatusesSampleEndpoint()
+      val hosebirdHosts = HttpHosts.USERSTREAM_HOST
+      val hosebirdEndpoint = new UserstreamEndpoint()
+      hosebirdEndpoint.withFollowings(true)
+      val config = ConfigFactory.load()
       val hosebirdAuth = new OAuth1(
-        "gHPvEU5JmjdKmySu9SVaPTYAF", // consumerKey
-        "POB161NfpHkoDl4TKp97eE8H0BAaXD8VjfgwuUwG1bBEfIRDKA", // consumerSecret
-        "84540044-0hrab0Dd2RqkMfzI3xNAD2OpjIGSjXYkB7FbDe2fB", // token
-        "iaBk1io5BOlx9XShvhLXp8nuA0udMMrH6uAb2dtZs72VY") // tokenSecret
+        config.getString("consumerKey"),
+        config.getString("consumerSecret"),
+        config.getString("token"),
+        config.getString("tokenSecret"))
 
       val hosebirdClient = new ClientBuilder()
-        .name("Hosebird-Client-01")
+        .name("switter-terminal")
         .hosts(hosebirdHosts)
         .authentication(hosebirdAuth)
         .endpoint(hosebirdEndpoint)
@@ -48,8 +53,9 @@ class TwitterStreamActor extends Actor with ActorLogging {
 
     case PollTheStream =>
       client.filter(!_.isDone).foreach(_ => {
-        val msg = Option(msgQueue.poll(2, TimeUnit.SECONDS))
-        printer ! PrinterActor.TweetRecieved(msg.getOrElse("No messages received"))
+        Option(msgQueue.poll(2, TimeUnit.SECONDS)) foreach { msg =>
+          parser ! MessageParserActor.MessageReceived(msg)
+        }
       })
 
     case StopStreaming =>

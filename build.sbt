@@ -8,5 +8,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-actor" % "2.3.11",
   "com.typesafe.akka" %% "akka-testkit" % "2.3.11" % "test",
   "org.scalatest" %% "scalatest" % "2.2.4" % "test",
-  "com.twitter" % "hbc-core" % "2.2.0"
+  "com.twitter" % "hbc-core" % "2.2.0",
+  "org.json4s" %% "json4s-native" % "3.3.0",
+  "com.typesafe" % "config" % "1.3.0"
 )
